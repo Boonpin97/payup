@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "581000742813",
+    "project_id": "payup-68c7e",
+    "storage_bucket": "payup-68c7e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581000742813:android:a867f47306ab2e3a88d174",
+        "android_client_info": {
+          "package_name": "com.example.pay_up2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnJDGQKDmWCAVeW2DclHA_-Lnrbw8ZBII"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
