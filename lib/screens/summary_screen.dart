@@ -244,169 +244,109 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ],
                     ),
                   )
-                : CustomScrollView(
-                    slivers: [
-                      // Summary Header
-                      SliverToBoxAdapter(
-                        child: Container(
-                          margin: const EdgeInsets.all(16),
+                : DefaultTabController(
+                    length: 2,
+                    child: Column(
+                      children: [
+                        // Summary Header
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Theme.of(context).primaryColor,
-                                Theme.of(context).primaryColor.withOpacity(0.7),
-                              ],
-                            ),
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).primaryColor.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'Total Expenses',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '\$${totalExpenses.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_expenses.length} ${_expenses.length == 1 ? "expense" : "expenses"}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Balances Section
-                      if (balances.isNotEmpty) ...[
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.account_balance, size: 20),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Settlements',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final entries = balances.entries.toList();
-                              final from = entries[index].key;
-                              final owes = entries[index].value;
-                              
-                              if (owes.isEmpty) return const SizedBox.shrink();
-                              
-                              return Column(
-                                children: owes.entries.map((entry) {
-                                  return BalanceCard(
-                                    from: from,
-                                    to: entry.key,
-                                    amount: entry.value,
-                                  );
-                                }).toList(),
-                              );
-                            },
-                            childCount: balances.length,
-                          ),
-                        ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                      ],
-                      // Expenses Section
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.receipt_long, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Expenses',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Total Expenses', style: TextStyle(color: Colors.white.withOpacity(0.8))),
+                                  const SizedBox(height: 6),
+                  Text('\$${totalExpenses.toStringAsFixed(2)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                                child: Text(
+                                  '${_expenses.length} ${_expenses.length == 1 ? "expense" : "expenses"}',
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      // Expense List
-                      if (_expenses.isEmpty)
-                        SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.receipt_outlined,
-                                  size: 80,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No expenses yet',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap the + button to add one',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              return ExpenseCard(
-                                expense: _expenses[index],
-                                onEdit: () => _navigateToAddExpense(expense: _expenses[index]),
-                                onDelete: () => _deleteExpense(_expenses[index].id),
-                              );
-                            },
-                            childCount: _expenses.length,
+                        // Tabs
+                        TabBar(
+                          labelColor: Theme.of(context).colorScheme.primary,
+                          unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          indicatorColor: Theme.of(context).colorScheme.primary,
+                          tabs: const [
+                            Tab(icon: Icon(Icons.account_balance), text: 'Settlements'),
+                            Tab(icon: Icon(Icons.receipt_long), text: 'Expenses'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Content
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              // Settlements tab
+                              balances.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        'No settlements required yet',
+                                        style: TextStyle(color: Colors.grey[600]),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                      itemCount: balances.length,
+                                      itemBuilder: (context, index) {
+                                        final entries = balances.entries.toList();
+                                        final from = entries[index].key;
+                                        final owes = entries[index].value;
+                                        if (owes.isEmpty) return const SizedBox.shrink();
+                                        return Column(
+                                          children: owes.entries
+                                              .map((entry) => BalanceCard(from: from, to: entry.key, amount: entry.value))
+                                              .toList(),
+                                        );
+                                      },
+                                    ),
+                              // Expenses tab
+                              _expenses.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.receipt_outlined, size: 80, color: Colors.grey[400]),
+                                          const SizedBox(height: 16),
+                                          Text('No expenses yet', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                                          const SizedBox(height: 8),
+                                          Text('Tap the + button to add one', style: TextStyle(color: Colors.grey[500])),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.only(bottom: 96),
+                                      itemCount: _expenses.length,
+                                      itemBuilder: (context, index) {
+                                        return ExpenseCard(
+                                          expense: _expenses[index],
+                                          onEdit: () => _navigateToAddExpense(expense: _expenses[index]),
+                                          onDelete: () => _deleteExpense(_expenses[index].id),
+                                        );
+                                      },
+                                    ),
+                            ],
                           ),
                         ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                    ],
+                      ],
+                    ),
                   ),
       ),
       floatingActionButton: FloatingActionButton.extended(

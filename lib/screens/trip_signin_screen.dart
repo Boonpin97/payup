@@ -205,76 +205,21 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
-                // Mode Toggle
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isCreateMode = true;
-                              _errorMessage = null;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _isCreateMode
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Create Trip',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: _isCreateMode
-                                    ? Colors.white
-                                    : Colors.grey[700],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isCreateMode = false;
-                              _errorMessage = null;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: !_isCreateMode
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Join Trip',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: !_isCreateMode
-                                    ? Colors.white
-                                    : Colors.grey[700],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Mode Toggle (Material 3 SegmentedButton)
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(value: true, label: Text('Create'), icon: Icon(Icons.add_circle_outline)),
+                    ButtonSegment<bool>(value: false, label: Text('Join'), icon: Icon(Icons.login_outlined)),
+                  ],
+                  selected: {_isCreateMode},
+                  onSelectionChanged: (selection) {
+                    setState(() {
+                      _isCreateMode = selection.first;
+                      _errorMessage = null;
+                    });
+                  },
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
                 ),
                 const SizedBox(height: 32),
                 // Form Fields
