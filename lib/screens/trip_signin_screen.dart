@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/firebase_service.dart';
 import '../models/trip.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'participants_screen.dart';
+import 'summary_screen.dart';
 
 class TripSignInScreen extends StatefulWidget {
   const TripSignInScreen({super.key});
@@ -79,8 +81,23 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
           ),
           actions: [
             CustomButton(
-              text: 'Continue',
-              onPressed: () {
+              text: 'Copy',
+              onPressed: () async {
+                // Copy to clipboard
+                await Clipboard.setData(ClipboardData(text: trip.signInCode));
+                
+                if (!mounted) return;
+                
+                // Show a snackbar confirmation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Code copied to clipboard!'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                
+                // Close dialog and navigate
                 Navigator.of(context).pop();
                 _navigateToParticipants(trip);
               },
@@ -124,9 +141,10 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
         _navigateToParticipants(trip);
       } else {
         // Navigate to summary screen
-        Navigator.of(context).pushReplacementNamed(
-          '/summary',
-          arguments: trip,
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => SummaryScreen(trip: trip),
+          ),
         );
       }
     } catch (e) {
@@ -276,16 +294,16 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
                 ] else ...[
                   CustomTextField(
                     label: 'Sign-In Code',
-                    hint: 'Enter 6-digit code',
+                    hint: 'Enter 7-character code',
                     controller: _signInCodeController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.text,
                     prefixIcon: const Icon(Icons.vpn_key),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter the sign-in code';
                       }
-                      if (value.trim().length != 6) {
-                        return 'Code must be 6 digits';
+                      if (value.trim().length != 7) {
+                        return 'Code must be 7 characters';
                       }
                       return null;
                     },

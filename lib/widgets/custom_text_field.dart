@@ -14,6 +14,8 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final List<TextInputFormatter>? inputFormatters;
   final VoidCallback? onTap;
+  final bool autofocus;
+  final void Function(String)? onFieldSubmitted;
 
   const CustomTextField({
     super.key,
@@ -29,6 +31,8 @@ class CustomTextField extends StatelessWidget {
     this.enabled = true,
     this.inputFormatters,
     this.onTap,
+    this.autofocus = false,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -54,6 +58,8 @@ class CustomTextField extends StatelessWidget {
           enabled: enabled,
           inputFormatters: inputFormatters,
           onTap: onTap,
+          autofocus: autofocus,
+          onFieldSubmitted: onFieldSubmitted,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: prefixIcon,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/trip.dart';
 import '../models/expense.dart';
 import '../services/firebase_service.dart';
@@ -90,10 +91,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
-  void _navigateToAddExpense() async {
+  void _navigateToAddExpense({Expense? expense}) async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => AddExpenseScreen(trip: widget.trip),
+        builder: (context) => AddExpenseScreen(
+          trip: widget.trip,
+          expense: expense,
+        ),
       ),
     );
 
@@ -132,9 +136,56 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Trip Name: ${widget.trip.tripName}'),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Sign-In Code:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
-                      Text('Sign-In Code: ${widget.trip.signInCode}'),
-                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue[200]!),
+                            ),
+                            child: Text(
+                              widget.trip.signInCode,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.copy, size: 20),
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: widget.trip.signInCode),
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Code copied to clipboard!'),
+                                    duration: Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            },
+                            tooltip: 'Copy code',
+                            color: Colors.blue,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       Text('Participants: ${widget.trip.participants.length}'),
                       const SizedBox(height: 12),
                       const Text(
@@ -347,6 +398,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             (context, index) {
                               return ExpenseCard(
                                 expense: _expenses[index],
+                                onEdit: () => _navigateToAddExpense(expense: _expenses[index]),
                                 onDelete: () => _deleteExpense(_expenses[index].id),
                               );
                             },

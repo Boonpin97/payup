@@ -20,30 +20,17 @@ class ParticipantsScreen extends StatefulWidget {
 class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firebaseService = FirebaseService();
-  final List<TextEditingController> _nameControllers = [];
+  final _nameController = TextEditingController();
   
   bool _isLoading = false;
-  int _participantCount = 2;
+  int _totalParticipants = 2;
+  int _currentStep = 0; // 0 = select count, 1+ = entering names
+  List<String> _enteredNames = [];
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    _initializeControllers();
-  }
-
-  void _initializeControllers() {
-    _nameControllers.clear();
-    for (int i = 0; i < _participantCount; i++) {
-      _nameControllers.add(TextEditingController());
-    }
-  }
-
-  @override
   void dispose() {
-    for (var controller in _nameControllers) {
-      controller.dispose();
-    }
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -51,59 +38,73 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     if (newCount < 1 || newCount > 20) return;
 
     setState(() {
-      _participantCount = newCount;
+      _totalParticipants = newCount;
+    });
+  }
+
+  void _startEnteringNames() {
+    setState(() {
+      _currentStep = 1;
+      _nameController.clear();
+      _errorMessage = null;
+    });
+  }
+
+  void _nextName() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final name = _nameController.text.trim();
+    
+    // Check for duplicate names
+    if (_enteredNames.contains(name)) {
+      setState(() {
+        _errorMessage = 'This name has already been added';
+      });
+      return;
+    }
+
+    setState(() {
+      _enteredNames.add(name);
+      _nameController.clear();
+      _errorMessage = null;
       
-      // Add or remove controllers as needed
-      if (_nameControllers.length < newCount) {
-        for (int i = _nameControllers.length; i < newCount; i++) {
-          _nameControllers.add(TextEditingController());
-        }
-      } else if (_nameControllers.length > newCount) {
-        for (int i = _nameControllers.length - 1; i >= newCount; i--) {
-          _nameControllers[i].dispose();
-          _nameControllers.removeAt(i);
-        }
+      // Check if we've entered all names
+      if (_enteredNames.length >= _totalParticipants) {
+        _saveParticipants();
+      } else {
+        _currentStep++;
       }
     });
   }
 
+  void _previousName() {
+    if (_enteredNames.isEmpty) {
+      setState(() {
+        _currentStep = 0;
+      });
+    } else {
+      setState(() {
+        _enteredNames.removeLast();
+        _currentStep--;
+        _nameController.clear();
+        _errorMessage = null;
+      });
+    }
+  }
+
   Future<void> _saveParticipants() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Get participant names
-    final participants = _nameControllers
-        .map((controller) => controller.text.trim())
-        .where((name) => name.isNotEmpty)
-        .toList();
-
-    if (participants.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please add at least one participant';
-      });
-      return;
-    }
-
-    // Check for duplicate names
-    final uniqueNames = participants.toSet();
-    if (uniqueNames.length != participants.length) {
-      setState(() {
-        _errorMessage = 'Participant names must be unique';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      await _firebaseService.addParticipants(widget.trip.id, participants);
+      await _firebaseService.addParticipants(widget.trip.id, _enteredNames);
       
       if (!mounted) return;
 
       // Navigate to summary screen
-      final updatedTrip = widget.trip.copyWith(participants: participants);
+      final updatedTrip = widget.trip.copyWith(participants: _enteredNames);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => SummaryScreen(trip: updatedTrip),
@@ -112,9 +113,6 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to save participants: $e';
-      });
-    } finally {
-      setState(() {
         _isLoading = false;
       });
     }
@@ -122,10 +120,145 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Step 0: Select participant count
+    if (_currentStep == 0) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Add Participants'),
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Trip Info
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        widget.trip.tripName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Code: '),
+                          Text(
+                            widget.trip.signInCode,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 48),
+                const Text(
+                  'How many people are splitting expenses?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Participant Count Selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, size: 40),
+                      onPressed: _totalParticipants > 1
+                          ? () => _updateParticipantCount(_totalParticipants - 1)
+                          : null,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    const SizedBox(width: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '$_totalParticipants',
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, size: 40),
+                      onPressed: _totalParticipants < 20
+                          ? () => _updateParticipantCount(_totalParticipants + 1)
+                          : null,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _totalParticipants == 1 ? 'person' : 'people',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const Spacer(),
+                CustomButton(
+                  text: 'Start Adding Names',
+                  onPressed: _startEnteringNames,
+                  icon: Icons.arrow_forward,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Steps 1+: Enter participant names one by one
+    final participantNumber = _enteredNames.length + 1;
+    final isLastParticipant = participantNumber == _totalParticipants;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Participants'),
+        title: Text('Participant $participantNumber of $_totalParticipants'),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _isLoading ? null : _previousName,
+        ),
       ),
       body: SafeArea(
         child: Form(
@@ -138,107 +271,69 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Trip Info
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue[200]!),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              widget.trip.tripName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('Code: '),
-                                Text(
-                                  widget.trip.signInCode,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      // Progress indicator
+                      LinearProgressIndicator(
+                        value: _enteredNames.length / _totalParticipants,
+                        backgroundColor: Colors.grey[200],
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       const SizedBox(height: 32),
-                      // Participant Count Selector
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Number of participants:',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                      // Already entered names
+                      if (_enteredNames.isNotEmpty) ...[
+                        const Text(
+                          'Added participants:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey,
                           ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: _participantCount > 1
-                                ? () => _updateParticipantCount(_participantCount - 1)
-                                : null,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '$_participantCount',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _enteredNames.map((name) {
+                            return Chip(
+                              label: Text(name),
+                              avatar: const CircleAvatar(
+                                backgroundColor: Colors.blue,
+                                child: Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: _participantCount < 20
-                                ? () => _updateParticipantCount(_participantCount + 1)
-                                : null,
-                          ),
-                        ],
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                      // Name input
+                      Text(
+                        isLastParticipant
+                            ? 'Enter the last participant name:'
+                            : 'Enter participant name:',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      // Participant Name Fields
-                      ...List.generate(_participantCount, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: CustomTextField(
-                            label: 'Participant ${index + 1}',
-                            hint: 'Enter name',
-                            controller: _nameControllers[index],
-                            prefixIcon: Icon(
-                              Icons.person,
-                              color: Colors.grey[600],
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter a name';
-                              }
-                              return null;
-                            },
-                          ),
-                        );
-                      }),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        label: 'Participant ${_enteredNames.length + 1}',
+                        hint: 'Enter name',
+                        controller: _nameController,
+                        autofocus: true,
+                        prefixIcon: const Icon(Icons.person),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a name';
+                          }
+                          return null;
+                        },
+                        onFieldSubmitted: (_) => _nextName(),
+                      ),
                       const SizedBox(height: 16),
                       // Error Message
                       if (_errorMessage != null) ...[
@@ -282,10 +377,10 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                   ],
                 ),
                 child: CustomButton(
-                  text: 'Continue',
-                  onPressed: _saveParticipants,
+                  text: isLastParticipant ? 'Finish & Continue' : 'Next',
+                  onPressed: _nextName,
                   isLoading: _isLoading,
-                  icon: Icons.arrow_forward,
+                  icon: isLastParticipant ? Icons.check : Icons.arrow_forward,
                 ),
               ),
             ],

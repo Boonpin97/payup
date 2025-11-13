@@ -43,10 +43,11 @@ class FirebaseService {
     }
   }
 
-  // Generate a unique 6-digit sign-in code
+  // Generate a unique 7-character alphanumeric sign-in code
   String _generateSignInCode() {
     final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded similar looking: 0, O, 1, I
+    return List.generate(7, (index) => chars[random.nextInt(chars.length)]).join();
   }
 
   // Create a new trip

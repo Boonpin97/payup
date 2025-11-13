@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/trip.dart';
+import '../models/expense.dart';
 import '../services/firebase_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Trip trip;
+  final Expense? expense; // Optional expense for editing
 
   const AddExpenseScreen({
     super.key,
     required this.trip,
+    this.expense,
   });
 
   @override
@@ -36,13 +39,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize all participants as selected for even split
-    for (var participant in widget.trip.participants) {
-      _selectedParticipants[participant] = true;
-      _customAmountControllers[participant] = TextEditingController(text: '0.00');
+    
+    // If editing, populate fields with existing expense data
+    if (widget.expense != null) {
+      _expenseNameController.text = widget.expense!.name;
+      _amountController.text = widget.expense!.amount.toStringAsFixed(2);
+      _selectedPayer = widget.expense!.payer;
+      _selectedDate = widget.expense!.dateTime;
+      
+      // Initialize split data
+      final splitData = widget.expense!.splitAmong;
+      for (var participant in widget.trip.participants) {
+        _selectedParticipants[participant] = splitData.containsKey(participant);
+        _customAmountControllers[participant] = TextEditingController(
+          text: splitData[participant]?.toStringAsFixed(2) ?? '0.00'
+        );
+      }
+      
+      // Determine if it's an even split
+      if (splitData.isNotEmpty) {
+        final amounts = splitData.values.toSet();
+        _isEvenSplit = amounts.length == 1; // All amounts are the same
+      }
+    } else {
+      // Initialize all participants as selected for even split (new expense)
+      for (var participant in widget.trip.participants) {
+        _selectedParticipants[participant] = true;
+        _customAmountControllers[participant] = TextEditingController(text: '0.00');
+      }
     }
-    // Set first participant as default payer
-    if (widget.trip.participants.isNotEmpty) {
+    
+    // Set first participant as default payer if none selected
+    if (_selectedPayer == null && widget.trip.participants.isNotEmpty) {
       _selectedPayer = widget.trip.participants.first;
     }
   }
@@ -152,14 +180,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
 
     try {
-      await _firebaseService.addExpense(
-        tripId: widget.trip.id,
-        name: _expenseNameController.text.trim(),
-        amount: double.parse(_amountController.text),
-        payer: _selectedPayer!,
-        splitAmong: splitAmong,
-        dateTime: _selectedDate,
-      );
+      if (widget.expense != null) {
+        // Update existing expense
+        await _firebaseService.updateExpense(
+          tripId: widget.trip.id,
+          expenseId: widget.expense!.id,
+          name: _expenseNameController.text.trim(),
+          amount: double.parse(_amountController.text),
+          payer: _selectedPayer!,
+          splitAmong: splitAmong,
+          dateTime: _selectedDate,
+        );
+      } else {
+        // Add new expense
+        await _firebaseService.addExpense(
+          tripId: widget.trip.id,
+          name: _expenseNameController.text.trim(),
+          amount: double.parse(_amountController.text),
+          payer: _selectedPayer!,
+          splitAmong: splitAmong,
+          dateTime: _selectedDate,
+        );
+      }
 
       if (!mounted) return;
 
@@ -201,7 +243,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Expense'),
+        title: Text(widget.expense != null ? 'Edit Expense' : 'Add Expense'),
         centerTitle: true,
       ),
       body: Form(
@@ -553,7 +595,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ],
               ),
               child: CustomButton(
-                text: 'Save Expense',
+                text: widget.expense != null ? 'Update Expense' : 'Save Expense',
                 onPressed: _saveExpense,
                 isLoading: _isLoading,
                 icon: Icons.check,

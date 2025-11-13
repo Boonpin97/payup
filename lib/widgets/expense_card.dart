@@ -6,12 +6,14 @@ class ExpenseCard extends StatelessWidget {
   final Expense expense;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const ExpenseCard({
     super.key,
     required this.expense,
     this.onTap,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -45,13 +47,27 @@ class ExpenseCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (onDelete != null)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: onDelete,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onEdit != null)
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                          onPressed: onEdit,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      if (onEdit != null && onDelete != null)
+                        const SizedBox(width: 8),
+                      if (onDelete != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: onDelete,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
