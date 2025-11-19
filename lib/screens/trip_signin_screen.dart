@@ -49,11 +49,11 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('Trip Created!'),
+          title: const Center(child: Text('Trip Created!')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Your trip sign-in code is:'),
+              //const Text('Your trip sign-in code is:'),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -79,6 +79,7 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
               ),
             ],
           ),
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
             CustomButton(
               text: 'Copy',
@@ -219,14 +220,18 @@ class _TripSignInScreenState extends State<TripSignInScreen> {
                     });
                   },
                   showSelectedIcon: false,
-                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                  style: ButtonStyle(
+                    padding: MaterialStateProperty.all(
+                      const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 32),
                 // Form Fields
                 if (_isCreateMode) ...[
                   CustomTextField(
                     label: 'Trip Name',
-                    hint: 'e.g., Beach Weekend, Europe 2024',
+                    hint: 'Beach Weekend, Europe 2024',
                     controller: _tripNameController,
                     prefixIcon: const Icon(Icons.luggage),
                     validator: (value) {

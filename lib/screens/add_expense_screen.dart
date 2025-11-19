@@ -25,6 +25,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _firebaseService = FirebaseService();
   final _expenseNameController = TextEditingController();
   final _amountController = TextEditingController();
+  final _expenseNameFocusNode = FocusNode();
+  final _amountFocusNode = FocusNode();
   
   String? _selectedPayer;
   DateTime _selectedDate = DateTime.now();
@@ -79,6 +81,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void dispose() {
     _expenseNameController.dispose();
     _amountController.dispose();
+    _expenseNameFocusNode.dispose();
+    _amountFocusNode.dispose();
     for (var controller in _customAmountControllers.values) {
       controller.dispose();
     }
@@ -261,6 +265,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       label: 'Expense Name',
                       hint: 'e.g., Dinner, Hotel, Gas',
                       controller: _expenseNameController,
+                      focusNode: _expenseNameFocusNode,
                       prefixIcon: const Icon(Icons.receipt),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -268,6 +273,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         }
                         return null;
                       },
+                      onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
                     ),
                     const SizedBox(height: 20),
                     // Amount
@@ -275,6 +281,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       label: 'Amount',
                       hint: '0.00',
                       controller: _amountController,
+                      focusNode: _amountFocusNode,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       prefixIcon: const Icon(Icons.attach_money),
                       inputFormatters: [
@@ -290,6 +297,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         }
                         return null;
                       },
+                      onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
                     ),
                     const SizedBox(height: 20),
                     // Payer Selection
@@ -582,23 +590,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ),
             // Bottom Button
-            Container(
+            Padding(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
               child: CustomButton(
-                text: widget.expense != null ? 'Update Expense' : 'Save Expense',
-                onPressed: _saveExpense,
+                text: 'Next',
+                onPressed: () {
+                  // Check which field is empty and focus on it
+                  if (_expenseNameController.text.trim().isEmpty) {
+                    _expenseNameFocusNode.requestFocus();
+                  } else if (_amountController.text.trim().isEmpty) {
+                    _amountFocusNode.requestFocus();
+                  } else {
+                    // All required fields are filled, save expense
+                    _saveExpense();
+                  }
+                },
                 isLoading: _isLoading,
-                icon: Icons.check,
+                icon: Icons.arrow_forward,
               ),
             ),
           ],

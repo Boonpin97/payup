@@ -20,17 +20,22 @@ class ParticipantsScreen extends StatefulWidget {
 class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firebaseService = FirebaseService();
-  final _nameController = TextEditingController();
+  final List<TextEditingController> _nameControllers = [];
+  final List<FocusNode> _focusNodes = [];
   
   bool _isLoading = false;
   int _totalParticipants = 2;
-  int _currentStep = 0; // 0 = select count, 1+ = entering names
-  List<String> _enteredNames = [];
+  bool _showNameFields = false;
   String? _errorMessage;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    for (var controller in _nameControllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -44,67 +49,69 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
   void _startEnteringNames() {
     setState(() {
-      _currentStep = 1;
-      _nameController.clear();
-      _errorMessage = null;
-    });
-  }
-
-  void _nextName() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final name = _nameController.text.trim();
-    
-    // Check for duplicate names
-    if (_enteredNames.contains(name)) {
-      setState(() {
-        _errorMessage = 'This name has already been added';
-      });
-      return;
-    }
-
-    setState(() {
-      _enteredNames.add(name);
-      _nameController.clear();
+      _showNameFields = true;
       _errorMessage = null;
       
-      // Check if we've entered all names
-      if (_enteredNames.length >= _totalParticipants) {
-        _saveParticipants();
-      } else {
-        _currentStep++;
+      // Initialize controllers and focus nodes
+      _nameControllers.clear();
+      _focusNodes.clear();
+      for (int i = 0; i < _totalParticipants; i++) {
+        _nameControllers.add(TextEditingController());
+        _focusNodes.add(FocusNode());
+      }
+    });
+    
+    // Focus on first field after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_focusNodes.isNotEmpty) {
+        _focusNodes[0].requestFocus();
       }
     });
   }
 
-  void _previousName() {
-    if (_enteredNames.isEmpty) {
-      setState(() {
-        _currentStep = 0;
-      });
+  void _goBack() {
+    setState(() {
+      _showNameFields = false;
+      _errorMessage = null;
+    });
+  }
+
+  void _focusNextField(int currentIndex) {
+    if (currentIndex < _focusNodes.length - 1) {
+      _focusNodes[currentIndex + 1].requestFocus();
     } else {
-      setState(() {
-        _enteredNames.removeLast();
-        _currentStep--;
-        _nameController.clear();
-        _errorMessage = null;
-      });
+      // Last field, unfocus keyboard
+      FocusScope.of(context).unfocus();
     }
   }
 
   Future<void> _saveParticipants() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Collect all names
+    final names = _nameControllers.map((controller) => controller.text.trim()).toList();
+    
+    // Check for duplicate names
+    final uniqueNames = names.toSet();
+    if (uniqueNames.length != names.length) {
+      setState(() {
+        _errorMessage = 'Duplicate names found. Please ensure all names are unique.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      await _firebaseService.addParticipants(widget.trip.id, _enteredNames);
+      await _firebaseService.addParticipants(widget.trip.id, names);
       
       if (!mounted) return;
 
       // Navigate to summary screen
-      final updatedTrip = widget.trip.copyWith(participants: _enteredNames);
+      final updatedTrip = widget.trip.copyWith(participants: names);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => SummaryScreen(trip: updatedTrip),
@@ -121,7 +128,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   @override
   Widget build(BuildContext context) {
     // Step 0: Select participant count
-    if (_currentStep == 0) {
+    if (!_showNameFields) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Add Participants'),
@@ -247,17 +254,14 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
       );
     }
 
-    // Steps 1+: Enter participant names one by one
-    final participantNumber = _enteredNames.length + 1;
-    final isLastParticipant = participantNumber == _totalParticipants;
-
+    // Show all text fields for participant names
     return Scaffold(
       appBar: AppBar(
-        title: Text('Participant $participantNumber of $_totalParticipants'),
+        title: const Text('Add Participants'),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: _isLoading ? null : _previousName,
+          onPressed: _isLoading ? null : _goBack,
         ),
       ),
       body: SafeArea(
@@ -271,69 +275,34 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Progress indicator
-                      LinearProgressIndicator(
-                        value: _enteredNames.length / _totalParticipants,
-                        backgroundColor: Colors.grey[200],
-                        minHeight: 8,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      const SizedBox(height: 32),
-                      // Already entered names
-                      if (_enteredNames.isNotEmpty) ...[
-                        const Text(
-                          'Added participants:',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _enteredNames.map((name) {
-                            return Chip(
-                              label: Text(name),
-                              avatar: const CircleAvatar(
-                                backgroundColor: Colors.blue,
-                                child: Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
-                      // Name input
-                      Text(
-                        isLastParticipant
-                            ? 'Enter the last participant name:'
-                            : 'Enter participant name:',
-                        style: const TextStyle(
+                      const Text(
+                        'Enter all participant names:',
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        label: 'Participant ${_enteredNames.length + 1}',
-                        hint: 'Enter name',
-                        controller: _nameController,
-                        autofocus: true,
-                        prefixIcon: const Icon(Icons.person),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a name';
-                          }
-                          return null;
-                        },
-                        onFieldSubmitted: (_) => _nextName(),
-                      ),
+                      const SizedBox(height: 24),
+                      // Generate text fields for all participants
+                      ...List.generate(_totalParticipants, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: CustomTextField(
+                            label: 'Participant ${index + 1}',
+                            hint: 'Enter name',
+                            controller: _nameControllers[index],
+                            focusNode: _focusNodes[index],
+                            prefixIcon: const Icon(Icons.person),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter a name';
+                              }
+                              return null;
+                            },
+                            onFieldSubmitted: (_) => _focusNextField(index),
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 16),
                       // Error Message
                       if (_errorMessage != null) ...[
@@ -364,23 +333,30 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                 ),
               ),
               // Bottom Button
-              Container(
+              Padding(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
                 child: CustomButton(
-                  text: isLastParticipant ? 'Finish & Continue' : 'Next',
-                  onPressed: _nextName,
+                  text: 'Next',
+                  onPressed: () {
+                    // Find the first empty field or the next unfilled field
+                    int nextIndex = -1;
+                    for (int i = 0; i < _nameControllers.length; i++) {
+                      if (_nameControllers[i].text.trim().isEmpty) {
+                        nextIndex = i;
+                        break;
+                      }
+                    }
+                    
+                    if (nextIndex != -1) {
+                      // Move to the next empty field
+                      _focusNodes[nextIndex].requestFocus();
+                    } else {
+                      // All fields are filled, save participants
+                      _saveParticipants();
+                    }
+                  },
                   isLoading: _isLoading,
-                  icon: isLastParticipant ? Icons.check : Icons.arrow_forward,
+                  icon: Icons.arrow_forward,
                 ),
               ),
             ],
